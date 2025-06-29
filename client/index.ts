@@ -1,19 +1,41 @@
-import net from 'net';
+import net, { Socket } from 'net';
 
-const client = net.createConnection('/tmp/unix.sock', () => {
-  console.log('connected to server');
-  client.write('client.data');
-});
+class UnixSocketClient {
+  private socket: Socket;
+  private socketPath: string;
 
-client.on('data', (data: Buffer) => {
-  console.log(data.toString());
-  client.end();
-});
+  constructor(socketPath: string = '/tmp/unix.sock') {
+    this.socketPath = socketPath;
+    this.socket = new Socket();
+    this.setupEventListeners();
+  }
 
-client.on('end', () => {
-  console.log('disconnected from server');
-});
+  public connect(): void {
+    this.socket.connect(this.socketPath, () => {
+      console.log('接続完了: サーバーに接続しました');
+      this.socket.write('client.data');
+    });
+  }
 
-client.on('error', (err: Error) => {
-  console.error(err.message);
-});
+  public disconnect(): void {
+    this.socket.end();
+  }
+
+  private setupEventListeners(): void {
+    this.socket.on('data', (data: Buffer) => {
+      console.log(`データ受信: ${data.toString()}`);
+      this.disconnect();
+    });
+
+    this.socket.on('end', () => {
+      console.log('切断: サーバーから切断されました');
+    });
+
+    this.socket.on('error', (err: Error) => {
+      console.error(`エラー: ${err.message}`);
+    });
+  }
+}
+
+const client = new UnixSocketClient();
+client.connect();
